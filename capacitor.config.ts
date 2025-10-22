@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: 'cems-academy-hub',
   webDir: 'dist',
   server: {
-    url: 'https://30ddb71b-736c-4473-bc35-57f622a923f6.lovableproject.com?forceHideBadge=true',
+    url: 'https://moncems.com',
     cleartext: true
   }
 };
