@@ -1,111 +1,219 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { CheckCircle2, CreditCard, Smartphone } from "lucide-react";
-import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { CheckCircle2 } from "lucide-react";
 
 const tarifs = [
   {
-    name: "Mensuel BEPC",
-    price: "50 000 FCFA",
-    periode: "/mois",
-    features: ["3 sessions/semaine", "Accès ressources", "Support WhatsApp"],
+    nom: "Mensuel BEPC",
+    prix: 50000,
+    prixFormate: "50 000",
+    periode: "mois",
+    caracteristiques: [
+      "3 sessions/semaine",
+      "Accès ressources",
+      "Support WhatsApp",
+    ],
+    populaire: false,
+    economie: null,
   },
   {
-    name: "Mensuel BAC",
-    price: "60 000 FCFA",
-    periode: "/mois",
-    features: ["3 sessions/semaine", "Accès ressources", "Support WhatsApp"],
-    popular: true,
+    nom: "Mensuel BAC",
+    prix: 60000,
+    prixFormate: "60 000",
+    periode: "mois",
+    caracteristiques: [
+      "3 sessions/semaine",
+      "Accès ressources",
+      "Support WhatsApp",
+    ],
+    populaire: true,
+    economie: null,
   },
   {
-    name: "Trimestriel BEPC",
-    price: "135 000 FCFA",
-    periode: "/trimestre",
-    features: ["3 sessions/semaine", "1 examen blanc", "Coaching inclus", "Économie 10%"],
+    nom: "Trimestriel BEPC",
+    prix: 135000,
+    prixFormate: "135 000",
+    periode: "trimestre",
+    caracteristiques: [
+      "3 sessions/semaine",
+      "1 examen blanc",
+      "Coaching inclus",
+    ],
+    populaire: false,
+    economie: "10%",
   },
   {
-    name: "Trimestriel BAC",
-    price: "162 000 FCFA",
-    periode: "/trimestre",
-    features: ["3 sessions/semaine", "1 examen blanc", "Mentorat inclus", "Économie 10%"],
+    nom: "Trimestriel BAC",
+    prix: 162000,
+    prixFormate: "162 000",
+    periode: "trimestre",
+    caracteristiques: [
+      "3 sessions/semaine",
+      "1 examen blanc",
+      "Mentorat inclus",
+    ],
+    populaire: false,
+    economie: "10%",
   },
 ];
 
 const Inscriptions = () => {
+  const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     nomEleve: "",
     classe: "",
     programme: "",
-    matieres: [] as string[],
     ecole: "",
     nomParent: "",
     telephone: "",
     email: "",
     formule: "",
-    accepteConditions: false,
   });
+  const [accepteConditions, setAccepteConditions] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.accepteConditions) {
-      toast.error("Veuillez accepter les conditions générales");
+    
+    if (!accepteConditions) {
+      toast({
+        title: "Conditions non acceptées",
+        description: "Veuillez accepter les conditions générales pour continuer.",
+        variant: "destructive",
+      });
       return;
     }
-    toast.success("Inscription envoyée ! Nous vous contacterons sous 24h.");
-    console.log("Form submitted:", formData);
+
+    // Validation du téléphone (format ivoirien)
+    const phoneRegex = /^(\+225)?[0-9]{10}$/;
+    if (!phoneRegex.test(formData.telephone.replace(/\s/g, ''))) {
+      toast({
+        title: "Téléphone invalide",
+        description: "Veuillez entrer un numéro ivoirien valide.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const tarifSelectionne = tarifs.find(t => t.nom === formData.formule);
+      
+      const { error } = await supabase
+        .from('inscriptions')
+        .insert({
+          nom_complet_eleve: formData.nomEleve,
+          classe_actuelle: formData.classe,
+          programme_souhaite: formData.programme,
+          ecole_actuelle: formData.ecole,
+          nom_parent: formData.nomParent,
+          telephone_parent: formData.telephone,
+          email_parent: formData.email || null,
+          formule: formData.formule,
+          montant: tarifSelectionne?.prix || 0,
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Demande envoyée !",
+        description: "Un conseiller CEMS vous contactera sous 24h pour finaliser votre inscription.",
+      });
+
+      // Réinitialiser le formulaire
+      setFormData({
+        nomEleve: "",
+        classe: "",
+        programme: "",
+        ecole: "",
+        nomParent: "",
+        telephone: "",
+        email: "",
+        formule: "",
+      });
+      setAccepteConditions(false);
+    } catch (error) {
+      console.error('Erreur inscription:', error);
+      toast({
+        title: "Erreur",
+        description: "Une erreur est survenue. Veuillez réessayer.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <div className="min-h-screen pt-20">
+    <div className="min-h-screen bg-gradient-to-b from-primary/5 to-background">
       {/* Hero Section */}
-      <section className="bg-gradient-hero text-primary-foreground py-16">
-        <div className="container mx-auto px-4 text-center">
-          <h1 className="font-display font-bold text-4xl md:text-5xl mb-4">
+      <section className="pt-32 pb-16 px-4">
+        <div className="container mx-auto text-center max-w-4xl">
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
             Inscriptions & Tarifs
           </h1>
-          <p className="text-xl text-primary-foreground/90 max-w-2xl mx-auto">
+          <p className="text-xl md:text-2xl text-muted-foreground">
             Choisissez la formule qui vous convient et rejoignez l'excellence
           </p>
         </div>
       </section>
 
-      {/* Tarifs */}
-      <section className="py-16 bg-background">
-        <div className="container mx-auto px-4">
-          <h2 className="font-display font-bold text-3xl text-foreground text-center mb-12">
-            Nos Formules
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
+      {/* Section Tarifs */}
+      <section className="pb-16 px-4">
+        <div className="container mx-auto">
+          <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">Nos Formules</h2>
+          <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto">
+            Des formules adaptées à vos besoins et votre budget
+          </p>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
             {tarifs.map((tarif, index) => (
-              <Card 
-                key={index} 
-                className={`relative ${tarif.popular ? 'border-2 border-success shadow-medium' : 'border-border'}`}
+              <Card
+                key={index}
+                className={`relative transition-all duration-300 hover:shadow-xl ${
+                  tarif.populaire
+                    ? "border-primary shadow-lg ring-2 ring-primary/20"
+                    : "border-border hover:border-primary/50"
+                }`}
               >
-                {tarif.popular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-success text-success-foreground px-4 py-1 rounded-full text-sm font-semibold">
+                {tarif.populaire && (
+                  <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground">
                     Populaire
-                  </div>
+                  </Badge>
                 )}
-                <CardHeader>
-                  <CardTitle className="font-display text-xl text-foreground">
-                    {tarif.name}
-                  </CardTitle>
-                  <div className="flex items-baseline mt-4">
-                    <span className="text-3xl font-bold text-foreground">{tarif.price}</span>
-                    <span className="text-muted-foreground ml-1">{tarif.periode}</span>
-                  </div>
+                {tarif.economie && (
+                  <Badge variant="secondary" className="absolute -top-3 right-4 bg-success/10 text-success border-success/20">
+                    Économie {tarif.economie}
+                  </Badge>
+                )}
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-xl mb-2">{tarif.nom}</CardTitle>
+                  <CardDescription className="text-left">
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-4xl font-bold text-foreground">
+                        {tarif.prixFormate}
+                      </span>
+                      <span className="text-sm text-muted-foreground">FCFA</span>
+                    </div>
+                    <span className="text-sm text-muted-foreground">
+                      /{tarif.periode}
+                    </span>
+                  </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pt-0">
                   <ul className="space-y-3">
-                    {tarif.features.map((feature, idx) => (
-                      <li key={idx} className="flex items-center text-sm text-muted-foreground">
-                        <CheckCircle2 className="w-4 h-4 mr-2 text-success flex-shrink-0" />
-                        {feature}
+                    {tarif.caracteristiques.map((carac, idx) => (
+                      <li key={idx} className="flex items-start gap-2 text-sm">
+                        <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                        <span>{carac}</span>
                       </li>
                     ))}
                   </ul>
@@ -117,58 +225,71 @@ const Inscriptions = () => {
       </section>
 
       {/* Formulaire d'inscription */}
-      <section className="py-16 bg-gradient-subtle">
-        <div className="container mx-auto px-4">
-          <Card className="max-w-4xl mx-auto">
-            <CardHeader>
-              <CardTitle className="font-display text-3xl text-foreground">
-                Formulaire d'Inscription
-              </CardTitle>
-              <p className="text-muted-foreground mt-2">
-                Complétez ce formulaire et nous vous contacterons sous 24h pour finaliser votre inscription
-              </p>
+      <section className="pb-24 px-4">
+        <div className="container mx-auto max-w-5xl">
+          <Card className="shadow-2xl">
+            <CardHeader className="text-center pb-8">
+              <CardTitle className="text-3xl mb-2">Formulaire d'Inscription</CardTitle>
+              <CardDescription className="text-base">
+                Complétez ce formulaire et nous vous contacterons sous 24h pour
+                finaliser votre inscription
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Informations élève */}
-                <div className="space-y-4">
-                  <h3 className="font-semibold text-lg text-foreground">Informations de l'élève</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <form onSubmit={handleSubmit} className="space-y-8">
+                <div className="space-y-6">
+                  <div className="pb-2 border-b">
+                    <h3 className="font-semibold text-lg text-primary">
+                      Informations de l'élève
+                    </h3>
+                  </div>
+                  <div className="grid md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <Label htmlFor="nomEleve">Nom complet de l'élève *</Label>
                       <Input
                         id="nomEleve"
                         required
+                        placeholder="Nom et prénoms"
                         value={formData.nomEleve}
-                        onChange={(e) => setFormData({ ...formData, nomEleve: e.target.value })}
+                        onChange={(e) =>
+                          setFormData({ ...formData, nomEleve: e.target.value })
+                        }
                       />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="classe">Classe actuelle *</Label>
-                      <Select value={formData.classe} onValueChange={(value) => setFormData({ ...formData, classe: value })}>
-                        <SelectTrigger id="classe">
+                      <Select
+                        value={formData.classe}
+                        onValueChange={(value) =>
+                          setFormData({ ...formData, classe: value })
+                        }
+                        required
+                      >
+                        <SelectTrigger>
                           <SelectValue placeholder="Sélectionner" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="3eme">3ème (BEPC)</SelectItem>
-                          <SelectItem value="2nde">2nde</SelectItem>
-                          <SelectItem value="1ere">1ère</SelectItem>
-                          <SelectItem value="tle">Terminale (BAC)</SelectItem>
+                          <SelectItem value="3e">3e</SelectItem>
+                          <SelectItem value="1re">1re</SelectItem>
+                          <SelectItem value="Tle">Tle</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="programme">Programme souhaité *</Label>
-                      <Select value={formData.programme} onValueChange={(value) => setFormData({ ...formData, programme: value })}>
-                        <SelectTrigger id="programme">
+                      <Select
+                        value={formData.programme}
+                        onValueChange={(value) =>
+                          setFormData({ ...formData, programme: value })
+                        }
+                        required
+                      >
+                        <SelectTrigger>
                           <SelectValue placeholder="Sélectionner" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="bepc">Programme BEPC</SelectItem>
-                          <SelectItem value="bac">Programme BAC</SelectItem>
+                          <SelectItem value="BEPC">BEPC</SelectItem>
+                          <SelectItem value="BAC">BAC</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -177,25 +298,33 @@ const Inscriptions = () => {
                       <Input
                         id="ecole"
                         required
-                        value={formData.ecole}
-                        onChange={(e) => setFormData({ ...formData, ecole: e.target.value })}
                         placeholder="Nom de l'établissement"
+                        value={formData.ecole}
+                        onChange={(e) =>
+                          setFormData({ ...formData, ecole: e.target.value })
+                        }
                       />
                     </div>
                   </div>
                 </div>
 
-                {/* Informations parent */}
-                <div className="space-y-4 border-t border-border pt-6">
-                  <h3 className="font-semibold text-lg text-foreground">Contact du parent / tuteur</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-6">
+                  <div className="pb-2 border-b">
+                    <h3 className="font-semibold text-lg text-primary">
+                      Contact du parent / tuteur
+                    </h3>
+                  </div>
+                  <div className="grid md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <Label htmlFor="nomParent">Nom du parent / tuteur *</Label>
                       <Input
                         id="nomParent"
                         required
+                        placeholder="Nom et prénoms"
                         value={formData.nomParent}
-                        onChange={(e) => setFormData({ ...formData, nomParent: e.target.value })}
+                        onChange={(e) =>
+                          setFormData({ ...formData, nomParent: e.target.value })
+                        }
                       />
                     </div>
                     <div className="space-y-2">
@@ -203,92 +332,95 @@ const Inscriptions = () => {
                       <Input
                         id="telephone"
                         type="tel"
+                        placeholder="+225 XX XX XX XX XX"
                         required
                         value={formData.telephone}
-                        onChange={(e) => setFormData({ ...formData, telephone: e.target.value })}
-                        placeholder="+225 XX XX XX XX XX"
+                        onChange={(e) =>
+                          setFormData({ ...formData, telephone: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="email@exemple.com"
+                        value={formData.email}
+                        onChange={(e) =>
+                          setFormData({ ...formData, email: e.target.value })
+                        }
                       />
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      placeholder="email@exemple.com"
-                    />
-                  </div>
                 </div>
 
-                {/* Formule */}
-                <div className="space-y-4 border-t border-border pt-6">
-                  <h3 className="font-semibold text-lg text-foreground">Formule d'inscription</h3>
-                  <div className="space-y-2">
-                    <Label htmlFor="formule">Choisir une formule *</Label>
-                    <Select value={formData.formule} onValueChange={(value) => setFormData({ ...formData, formule: value })}>
-                      <SelectTrigger id="formule">
-                        <SelectValue placeholder="Sélectionner" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {tarifs.map((tarif, idx) => (
-                          <SelectItem key={idx} value={tarif.name}>
-                            {tarif.name} - {tarif.price}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                <div className="space-y-6">
+                  <div className="pb-2 border-b">
+                    <h3 className="font-semibold text-lg text-primary">
+                      Formule d'inscription
+                    </h3>
                   </div>
-
-                  <div className="bg-muted p-4 rounded-lg space-y-3">
-                    <p className="text-sm font-medium text-foreground">Modes de paiement acceptés :</p>
-                    <div className="flex flex-wrap gap-3">
-                      <div className="flex items-center text-sm text-muted-foreground">
-                        <Smartphone className="w-4 h-4 mr-2 text-success" />
-                        Orange Money
-                      </div>
-                      <div className="flex items-center text-sm text-muted-foreground">
-                        <Smartphone className="w-4 h-4 mr-2 text-success" />
-                        MTN MoMo
-                      </div>
-                      <div className="flex items-center text-sm text-muted-foreground">
-                        <Smartphone className="w-4 h-4 mr-2 text-success" />
-                        Moov Money
-                      </div>
-                      <div className="flex items-center text-sm text-muted-foreground">
-                        <CreditCard className="w-4 h-4 mr-2 text-primary" />
-                        Carte bancaire
-                      </div>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="formule">Choisir une formule *</Label>
+                      <Select
+                        value={formData.formule}
+                        onValueChange={(value) =>
+                          setFormData({ ...formData, formule: value })
+                        }
+                        required
+                      >
+                        <SelectTrigger className="h-12">
+                          <SelectValue placeholder="Sélectionner une formule" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {tarifs.map((tarif) => (
+                            <SelectItem key={tarif.nom} value={tarif.nom}>
+                              {tarif.nom} - {tarif.prixFormate} FCFA
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      Reçu automatique envoyé par email et WhatsApp après paiement
-                    </p>
+                    <div className="bg-muted/50 p-4 rounded-lg space-y-2 text-sm">
+                      <p className="font-semibold text-foreground">Modes de paiement acceptés :</p>
+                      <p className="text-muted-foreground">Orange Money, MTN MoMo, Moov Money, Carte bancaire</p>
+                      <p className="text-muted-foreground">Reçu automatique envoyé par email et WhatsApp après paiement</p>
+                    </div>
                   </div>
                 </div>
 
-                {/* Conditions */}
-                <div className="flex items-start space-x-2 border-t border-border pt-6">
+                <div className="flex items-start space-x-3 p-4 bg-muted/30 rounded-lg">
                   <Checkbox
                     id="conditions"
-                    checked={formData.accepteConditions}
-                    onCheckedChange={(checked) => 
-                      setFormData({ ...formData, accepteConditions: checked as boolean })
+                    checked={accepteConditions}
+                    onCheckedChange={(checked) =>
+                      setAccepteConditions(checked as boolean)
                     }
+                    className="mt-1"
                   />
-                  <label htmlFor="conditions" className="text-sm text-muted-foreground leading-relaxed cursor-pointer">
-                    J'accepte les conditions générales d'inscription et autorise le CEMS à me contacter 
-                    concernant cette demande. *
-                  </label>
+                  <Label
+                    htmlFor="conditions"
+                    className="text-sm leading-relaxed cursor-pointer"
+                  >
+                    J'accepte les conditions générales d'inscription et autorise
+                    le CEMS à me contacter concernant cette demande. *
+                  </Label>
                 </div>
 
-                {/* Submit */}
-                <Button type="submit" variant="hero" size="lg" className="w-full">
-                  Envoyer ma demande d'inscription
+                <Button 
+                  type="submit" 
+                  size="lg" 
+                  className="w-full h-14 text-lg font-semibold"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? "Envoi en cours..." : "Envoyer ma demande d'inscription"}
                 </Button>
 
-                <p className="text-sm text-center text-muted-foreground">
-                  Un conseiller CEMS vous contactera sous 24h pour finaliser votre inscription
+                <p className="text-center text-sm text-muted-foreground bg-primary/5 p-4 rounded-lg">
+                  Un conseiller CEMS vous contactera sous 24h pour finaliser votre
+                  inscription
                 </p>
               </form>
             </CardContent>
