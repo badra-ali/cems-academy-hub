@@ -105,20 +105,20 @@ const Inscriptions = () => {
       const plan = plans.find((p) => p.code === formData.formule);
       if (!plan) throw new Error("Plan introuvable");
 
-      // Create payment record
+      // Create payment record without SELECT by providing client-side UUID
+      const paymentId = crypto.randomUUID();
       const paymentRef = `PMT-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
 
-      const { data: payment, error: paymentError } = await supabase
+      const { error: paymentError } = await supabase
         .from("payments")
         .insert({
+          id: paymentId,
           provider,
           amount_cfa: plan.price_cfa,
           status: "PENDING",
           ref: paymentRef,
           metadata: { enrollmentId },
-        })
-        .select()
-        .single();
+        });
 
       if (paymentError) throw paymentError;
 
@@ -126,13 +126,13 @@ const Inscriptions = () => {
       await supabase
         .from("inscriptions")
         .update({
-          payment_id: payment.id,
+          payment_id: paymentId,
           statut: "PENDING_PAYMENT",
         })
         .eq("id", enrollmentId);
 
       setPaymentInfo({
-        paymentId: payment.id,
+        paymentId,
         ref: paymentRef,
         provider,
         amountCFA: plan.price_cfa,
@@ -186,10 +186,12 @@ const Inscriptions = () => {
         return;
       }
 
-      // Create enrollment
-      const { data, error } = await supabase
+      // Create enrollment without requiring SELECT RLS by providing a client-side UUID
+      const newId = crypto.randomUUID();
+      const { error } = await supabase
         .from("inscriptions")
         .insert({
+          id: newId,
           nom_complet_eleve: formData.nomCompletEleve,
           classe_actuelle: formData.classeActuelle,
           programme_souhaite: formData.programmeSouhaite,
@@ -200,17 +202,15 @@ const Inscriptions = () => {
           formule: formData.formule,
           montant: plan.price_cfa,
           statut: "RECEIVED",
-        })
-        .select()
-        .single();
+        });
 
       if (error) throw error;
 
-      setEnrollmentId(data.id);
+      setEnrollmentId(newId);
       trackEvent("enrollment_created", { plan: formData.formule });
 
       // Initialize payment
-      await initializePayment(data.id, selectedProvider);
+      await initializePayment(newId, selectedProvider);
 
       toast({
         title: "Inscription envoyée !",
