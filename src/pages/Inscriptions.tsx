@@ -1,162 +1,251 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { supabase } from "@/integrations/supabase/client";
-import { CheckCircle2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Phone, MessageCircle, CheckCircle2 } from "lucide-react";
 
-const tarifs = [
-  {
-    nom: "Mensuel BEPC",
-    prix: 50000,
-    prixFormate: "50 000",
-    periode: "mois",
-    caracteristiques: [
-      "3 sessions/semaine",
-      "Accès ressources",
-      "Support WhatsApp",
-    ],
-    populaire: false,
-    economie: null,
-  },
-  {
-    nom: "Mensuel BAC",
-    prix: 60000,
-    prixFormate: "60 000",
-    periode: "mois",
-    caracteristiques: [
-      "3 sessions/semaine",
-      "Accès ressources",
-      "Support WhatsApp",
-    ],
-    populaire: true,
-    economie: null,
-  },
-  {
-    nom: "Trimestriel BEPC",
-    prix: 135000,
-    prixFormate: "135 000",
-    periode: "trimestre",
-    caracteristiques: [
-      "3 sessions/semaine",
-      "1 examen blanc",
-      "Coaching inclus",
-    ],
-    populaire: false,
-    economie: "10%",
-  },
-  {
-    nom: "Trimestriel BAC",
-    prix: 162000,
-    prixFormate: "162 000",
-    periode: "trimestre",
-    caracteristiques: [
-      "3 sessions/semaine",
-      "1 examen blanc",
-      "Mentorat inclus",
-    ],
-    populaire: false,
-    economie: "10%",
-  },
-];
+type Plan = {
+  id: string;
+  code: string;
+  name: string;
+  price_cfa: number;
+  billing: string;
+  details: string | null;
+  tag: string | null;
+  is_active: boolean;
+  weight: number;
+};
+
+type PaymentProvider = "ORANGE_MONEY" | "MTN_MOMO" | "MOOV_MONEY" | "CARD";
+
+const formatCFA = (value: number) => {
+  return new Intl.NumberFormat("fr-FR").format(value) + " FCFA";
+};
+
+const WHATSAPP_NUMBER = "+2250566621095";
+const PHONE_NUMBER1 = "+2250566621095";
+
+const trackEvent = async (event: string, meta?: any) => {
+  try {
+    await supabase.from("track_events").insert({ event, meta });
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      console.error("Track event error:", error);
+    }
+  }
+};
 
 const Inscriptions = () => {
   const { toast } = useToast();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [enrollmentId, setEnrollmentId] = useState<string | null>(null);
+  const [paymentInfo, setPaymentInfo] = useState<any>(null);
+  const [selectedProvider, setSelectedProvider] = useState<PaymentProvider>("ORANGE_MONEY");
+
   const [formData, setFormData] = useState({
-    nomEleve: "",
-    classe: "",
-    programme: "",
-    ecole: "",
+    nomCompletEleve: "",
+    classeActuelle: "3e",
+    programmeSouhaite: "BEPC",
+    ecoleActuelle: "",
     nomParent: "",
-    telephone: "",
-    email: "",
+    telephoneParent: "",
+    emailParent: "",
     formule: "",
+    accepteConditions: false,
   });
-  const [accepteConditions, setAccepteConditions] = useState(false);
+
+  useEffect(() => {
+    fetchPlans();
+  }, []);
+
+  const fetchPlans = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("plans")
+        .select("*")
+        .eq("is_active", true)
+        .order("weight", { ascending: true });
+
+      if (error) throw error;
+      setPlans(data || []);
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.error("Error fetching plans:", error);
+      }
+      toast({
+        title: "Erreur",
+        description: "Impossible de charger les formules. Veuillez réessayer.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const onSelectPlan = (plan: Plan) => {
+    setSelectedPlan(plan);
+    setFormData({ ...formData, formule: plan.code });
+    trackEvent("pricing_plan_select", { code: plan.code });
+  };
+
+  const validatePhone = (phone: string): boolean => {
+    const phoneRegex = /^\+225\s?([0-9]{2}\s?){5}$/;
+    return phoneRegex.test(phone);
+  };
+
+  const initializePayment = async (enrollmentId: string, provider: PaymentProvider) => {
+    try {
+      const plan = plans.find((p) => p.code === formData.formule);
+      if (!plan) throw new Error("Plan introuvable");
+
+      // Create payment record
+      const paymentRef = `PMT-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
+
+      const { data: payment, error: paymentError } = await supabase
+        .from("payments")
+        .insert({
+          provider,
+          amount_cfa: plan.price_cfa,
+          status: "PENDING",
+          ref: paymentRef,
+          metadata: { enrollmentId },
+        })
+        .select()
+        .single();
+
+      if (paymentError) throw paymentError;
+
+      // Update enrollment with payment_id
+      await supabase
+        .from("inscriptions")
+        .update({
+          payment_id: payment.id,
+          statut: "PENDING_PAYMENT",
+        })
+        .eq("id", enrollmentId);
+
+      setPaymentInfo({
+        paymentId: payment.id,
+        ref: paymentRef,
+        provider,
+        amountCFA: plan.price_cfa,
+        instructions: `Effectuez le paiement via ${provider}. Référence: ${paymentRef}`,
+      });
+
+      trackEvent("payment_initiated", { provider, amount: plan.price_cfa, ref: paymentRef });
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.error("Payment initialization error:", error);
+      }
+      throw error;
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!accepteConditions) {
-      toast({
-        title: "Conditions non acceptées",
-        description: "Veuillez accepter les conditions générales pour continuer.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Validation du téléphone (format ivoirien)
-    const phoneRegex = /^(\+225)?[0-9]{10}$/;
-    if (!phoneRegex.test(formData.telephone.replace(/\s/g, ''))) {
-      toast({
-        title: "Téléphone invalide",
-        description: "Veuillez entrer un numéro ivoirien valide.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsSubmitting(true);
+    setLoading(true);
 
     try {
-      const tarifSelectionne = tarifs.find(t => t.nom === formData.formule);
-      
-      const { error } = await supabase
-        .from('inscriptions')
-        .insert({
-          nom_complet_eleve: formData.nomEleve,
-          classe_actuelle: formData.classe,
-          programme_souhaite: formData.programme,
-          ecole_actuelle: formData.ecole,
-          nom_parent: formData.nomParent,
-          telephone_parent: formData.telephone,
-          email_parent: formData.email || null,
-          formule: formData.formule,
-          montant: tarifSelectionne?.prix || 0,
+      // Validation
+      if (!validatePhone(formData.telephoneParent)) {
+        toast({
+          title: "Erreur de validation",
+          description: "Format attendu: +225 XX XX XX XX XX",
+          variant: "destructive",
         });
+        setLoading(false);
+        return;
+      }
+
+      if (!formData.formule) {
+        toast({
+          title: "Erreur",
+          description: "Veuillez sélectionner une formule",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      const plan = plans.find((p) => p.code === formData.formule);
+      if (!plan) {
+        toast({
+          title: "Erreur",
+          description: "Formule introuvable",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Create enrollment
+      const { data, error } = await supabase
+        .from("inscriptions")
+        .insert({
+          nom_complet_eleve: formData.nomCompletEleve,
+          classe_actuelle: formData.classeActuelle,
+          programme_souhaite: formData.programmeSouhaite,
+          ecole_actuelle: formData.ecoleActuelle,
+          nom_parent: formData.nomParent,
+          telephone_parent: formData.telephoneParent,
+          email_parent: formData.emailParent || null,
+          formule: formData.formule,
+          montant: plan.price_cfa,
+          statut: "RECEIVED",
+        })
+        .select()
+        .single();
 
       if (error) throw error;
 
+      setEnrollmentId(data.id);
+      trackEvent("enrollment_created", { plan: formData.formule });
+
+      // Initialize payment
+      await initializePayment(data.id, selectedProvider);
+
       toast({
-        title: "Demande envoyée !",
-        description: "Un conseiller CEMS vous contactera sous 24h pour finaliser votre inscription.",
+        title: "Inscription envoyée !",
+        description: "Nous vous contacterons sous 24h pour confirmer votre inscription.",
       });
 
-      // Réinitialiser le formulaire
+      // Reset form
       setFormData({
-        nomEleve: "",
-        classe: "",
-        programme: "",
-        ecole: "",
+        nomCompletEleve: "",
+        classeActuelle: "3e",
+        programmeSouhaite: "BEPC",
+        ecoleActuelle: "",
         nomParent: "",
-        telephone: "",
-        email: "",
+        telephoneParent: "",
+        emailParent: "",
         formule: "",
+        accepteConditions: false,
       });
-      setAccepteConditions(false);
+      setSelectedPlan(null);
     } catch (error) {
-      console.error('Erreur inscription:', error);
+      if (import.meta.env.DEV) {
+        console.error("Erreur inscription:", error);
+      }
       toast({
         title: "Erreur",
         description: "Une erreur est survenue. Veuillez réessayer.",
         variant: "destructive",
       });
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary/5 to-background">
       {/* Hero Section */}
-      <section className="pt-32 pb-16 px-4">
+      <header className="pt-32 pb-16 px-4">
         <div className="container mx-auto text-center max-w-4xl">
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
             Inscriptions & Tarifs
@@ -165,9 +254,9 @@ const Inscriptions = () => {
             Choisissez la formule qui vous convient et rejoignez l'excellence
           </p>
         </div>
-      </section>
+      </header>
 
-      {/* Section Tarifs */}
+      {/* Pricing Section */}
       <section className="pb-16 px-4">
         <div className="container mx-auto">
           <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">Nos Formules</h2>
@@ -175,48 +264,57 @@ const Inscriptions = () => {
             Des formules adaptées à vos besoins et votre budget
           </p>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
-            {tarifs.map((tarif, index) => (
+            {plans.map((plan) => (
               <Card
-                key={index}
-                className={`relative transition-all duration-300 hover:shadow-xl ${
-                  tarif.populaire
+                key={plan.code}
+                className={`relative transition-all duration-300 hover:shadow-xl cursor-pointer ${
+                  selectedPlan?.code === plan.code
                     ? "border-primary shadow-lg ring-2 ring-primary/20"
                     : "border-border hover:border-primary/50"
                 }`}
+                onClick={() => onSelectPlan(plan)}
               >
-                {tarif.populaire && (
+                {plan.tag === "Populaire" && (
                   <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground">
-                    Populaire
+                    {plan.tag}
                   </Badge>
                 )}
-                {tarif.economie && (
+                {plan.tag && plan.tag.includes("Économie") && (
                   <Badge variant="secondary" className="absolute -top-3 right-4 bg-success/10 text-success border-success/20">
-                    Économie {tarif.economie}
+                    {plan.tag}
                   </Badge>
                 )}
                 <CardHeader className="pb-4">
-                  <CardTitle className="text-xl mb-2">{tarif.nom}</CardTitle>
+                  <CardTitle className="text-xl mb-2">{plan.name}</CardTitle>
                   <CardDescription className="text-left">
                     <div className="flex items-baseline gap-1">
                       <span className="text-4xl font-bold text-foreground">
-                        {tarif.prixFormate}
+                        {new Intl.NumberFormat("fr-FR").format(plan.price_cfa)}
                       </span>
                       <span className="text-sm text-muted-foreground">FCFA</span>
                     </div>
                     <span className="text-sm text-muted-foreground">
-                      /{tarif.periode}
+                      /{plan.billing === "monthly" ? "mois" : "trimestre"}
                     </span>
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  <ul className="space-y-3">
-                    {tarif.caracteristiques.map((carac, idx) => (
-                      <li key={idx} className="flex items-start gap-2 text-sm">
-                        <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
-                        <span>{carac}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  {plan.details && (
+                    <ul className="space-y-3">
+                      {plan.details.split(" · ").map((detail, idx) => (
+                        <li key={idx} className="flex items-start gap-2 text-sm">
+                          <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                          <span>{detail}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {selectedPlan?.code === plan.code && (
+                    <div className="mt-4 flex items-center gap-2 text-sm font-medium text-primary">
+                      <CheckCircle2 className="w-4 h-4" />
+                      Sélectionné
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))}
@@ -224,19 +322,19 @@ const Inscriptions = () => {
         </div>
       </section>
 
-      {/* Formulaire d'inscription */}
+      {/* Enrollment Form */}
       <section className="pb-24 px-4">
         <div className="container mx-auto max-w-5xl">
           <Card className="shadow-2xl">
             <CardHeader className="text-center pb-8">
               <CardTitle className="text-3xl mb-2">Formulaire d'Inscription</CardTitle>
               <CardDescription className="text-base">
-                Complétez ce formulaire et nous vous contacterons sous 24h pour
-                finaliser votre inscription
+                Complétez ce formulaire et nous vous contacterons sous 24h pour finaliser votre inscription
               </CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-8">
+                {/* Student Information */}
                 <div className="space-y-6">
                   <div className="pb-2 border-b">
                     <h3 className="font-semibold text-lg text-primary">
@@ -245,23 +343,23 @@ const Inscriptions = () => {
                   </div>
                   <div className="grid md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label htmlFor="nomEleve">Nom complet de l'élève *</Label>
+                      <Label htmlFor="nomCompletEleve">Nom complet de l'élève *</Label>
                       <Input
-                        id="nomEleve"
+                        id="nomCompletEleve"
                         required
                         placeholder="Nom et prénoms"
-                        value={formData.nomEleve}
+                        value={formData.nomCompletEleve}
                         onChange={(e) =>
-                          setFormData({ ...formData, nomEleve: e.target.value })
+                          setFormData({ ...formData, nomCompletEleve: e.target.value })
                         }
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="classe">Classe actuelle *</Label>
+                      <Label htmlFor="classeActuelle">Classe actuelle *</Label>
                       <Select
-                        value={formData.classe}
+                        value={formData.classeActuelle}
                         onValueChange={(value) =>
-                          setFormData({ ...formData, classe: value })
+                          setFormData({ ...formData, classeActuelle: value })
                         }
                         required
                       >
@@ -276,11 +374,11 @@ const Inscriptions = () => {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="programme">Programme souhaité *</Label>
+                      <Label htmlFor="programmeSouhaite">Programme souhaité *</Label>
                       <Select
-                        value={formData.programme}
+                        value={formData.programmeSouhaite}
                         onValueChange={(value) =>
-                          setFormData({ ...formData, programme: value })
+                          setFormData({ ...formData, programmeSouhaite: value })
                         }
                         required
                       >
@@ -294,20 +392,21 @@ const Inscriptions = () => {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="ecole">École actuelle *</Label>
+                      <Label htmlFor="ecoleActuelle">École actuelle *</Label>
                       <Input
-                        id="ecole"
+                        id="ecoleActuelle"
                         required
                         placeholder="Nom de l'établissement"
-                        value={formData.ecole}
+                        value={formData.ecoleActuelle}
                         onChange={(e) =>
-                          setFormData({ ...formData, ecole: e.target.value })
+                          setFormData({ ...formData, ecoleActuelle: e.target.value })
                         }
                       />
                     </div>
                   </div>
                 </div>
 
+                {/* Parent Information */}
                 <div className="space-y-6">
                   <div className="pb-2 border-b">
                     <h3 className="font-semibold text-lg text-primary">
@@ -328,105 +427,195 @@ const Inscriptions = () => {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="telephone">Téléphone *</Label>
+                      <Label htmlFor="telephoneParent">Téléphone *</Label>
                       <Input
-                        id="telephone"
+                        id="telephoneParent"
                         type="tel"
                         placeholder="+225 XX XX XX XX XX"
                         required
-                        value={formData.telephone}
+                        value={formData.telephoneParent}
                         onChange={(e) =>
-                          setFormData({ ...formData, telephone: e.target.value })
+                          setFormData({ ...formData, telephoneParent: e.target.value })
                         }
                       />
+                      <p className="text-xs text-muted-foreground">
+                        Format attendu: +225 XX XX XX XX XX
+                      </p>
                     </div>
                     <div className="space-y-2 md:col-span-2">
-                      <Label htmlFor="email">Email</Label>
+                      <Label htmlFor="emailParent">Email</Label>
                       <Input
-                        id="email"
+                        id="emailParent"
                         type="email"
                         placeholder="email@exemple.com"
-                        value={formData.email}
+                        value={formData.emailParent}
                         onChange={(e) =>
-                          setFormData({ ...formData, email: e.target.value })
+                          setFormData({ ...formData, emailParent: e.target.value })
                         }
                       />
                     </div>
                   </div>
                 </div>
 
+                {/* Plan Selection */}
                 <div className="space-y-6">
                   <div className="pb-2 border-b">
                     <h3 className="font-semibold text-lg text-primary">
-                      Formule d'inscription
+                      Formule et Paiement
                     </h3>
                   </div>
-                  <div className="space-y-4">
+                  <div className="grid md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <Label htmlFor="formule">Choisir une formule *</Label>
                       <Select
                         value={formData.formule}
-                        onValueChange={(value) =>
-                          setFormData({ ...formData, formule: value })
-                        }
+                        onValueChange={(value) => {
+                          setFormData({ ...formData, formule: value });
+                          const plan = plans.find((p) => p.code === value);
+                          if (plan) setSelectedPlan(plan);
+                        }}
                         required
                       >
                         <SelectTrigger className="h-12">
                           <SelectValue placeholder="Sélectionner une formule" />
                         </SelectTrigger>
                         <SelectContent>
-                          {tarifs.map((tarif) => (
-                            <SelectItem key={tarif.nom} value={tarif.nom}>
-                              {tarif.nom} - {tarif.prixFormate} FCFA
+                          {plans.map((plan) => (
+                            <SelectItem key={plan.code} value={plan.code}>
+                              {plan.name} - {formatCFA(plan.price_cfa)}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="bg-muted/50 p-4 rounded-lg space-y-2 text-sm">
-                      <p className="font-semibold text-foreground">Modes de paiement acceptés :</p>
-                      <p className="text-muted-foreground">Orange Money, MTN MoMo, Moov Money, Carte bancaire</p>
-                      <p className="text-muted-foreground">Reçu automatique envoyé par email et WhatsApp après paiement</p>
+                    <div className="space-y-2">
+                      <Label htmlFor="provider">Mode de paiement *</Label>
+                      <Select
+                        value={selectedProvider}
+                        onValueChange={(value: PaymentProvider) => setSelectedProvider(value)}
+                      >
+                        <SelectTrigger className="h-12">
+                          <SelectValue placeholder="Sélectionner un mode de paiement" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ORANGE_MONEY">Orange Money</SelectItem>
+                          <SelectItem value="MTN_MOMO">MTN Mobile Money</SelectItem>
+                          <SelectItem value="MOOV_MONEY">Moov Money</SelectItem>
+                          <SelectItem value="CARD">Carte bancaire</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
+                  </div>
+                  <div className="bg-muted/50 p-4 rounded-lg space-y-2 text-sm">
+                    <p className="font-semibold text-foreground">À propos du paiement :</p>
+                    <p className="text-muted-foreground">
+                      Après soumission de votre demande, vous recevrez une référence de paiement. Un conseiller vous contactera sous 24h pour finaliser le processus.
+                    </p>
                   </div>
                 </div>
 
+                {/* Terms Acceptance */}
                 <div className="flex items-start space-x-3 p-4 bg-muted/30 rounded-lg">
                   <Checkbox
                     id="conditions"
-                    checked={accepteConditions}
+                    checked={formData.accepteConditions}
                     onCheckedChange={(checked) =>
-                      setAccepteConditions(checked as boolean)
+                      setFormData({ ...formData, accepteConditions: checked as boolean })
                     }
                     className="mt-1"
+                    required
                   />
                   <Label
                     htmlFor="conditions"
                     className="text-sm leading-relaxed cursor-pointer"
                   >
-                    J'accepte les conditions générales d'inscription et autorise
-                    le CEMS à me contacter concernant cette demande. *
+                    J'accepte les conditions générales d'inscription et autorise le CEMS à me contacter concernant cette demande. *
                   </Label>
                 </div>
 
-                <Button 
-                  type="submit" 
-                  size="lg" 
+                <Button
+                  type="submit"
+                  size="lg"
                   className="w-full h-14 text-lg font-semibold"
-                  disabled={isSubmitting}
+                  disabled={loading}
+                  variant="default"
                 >
-                  {isSubmitting ? "Envoi en cours..." : "Envoyer ma demande d'inscription"}
+                  {loading ? "Envoi en cours..." : "Envoyer ma demande d'inscription"}
                 </Button>
 
+                {/* Payment Info Display */}
+                {enrollmentId && paymentInfo && (
+                  <Card className="border-primary/20 bg-primary/5">
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <CheckCircle2 className="h-5 w-5 text-primary" />
+                        Demande créée avec succès
+                      </CardTitle>
+                      <CardDescription>ID: {enrollmentId}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2 text-sm">
+                        <div>
+                          <span className="font-semibold">Référence de paiement:</span>{" "}
+                          {paymentInfo.ref}
+                        </div>
+                        <div>
+                          <span className="font-semibold">Montant:</span>{" "}
+                          {formatCFA(paymentInfo.amountCFA)}
+                        </div>
+                        <div>
+                          <span className="font-semibold">Mode de paiement:</span>{" "}
+                          {paymentInfo.provider}
+                        </div>
+                        <div className="pt-2 border-t">
+                          <p className="text-muted-foreground">{paymentInfo.instructions}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
                 <p className="text-center text-sm text-muted-foreground bg-primary/5 p-4 rounded-lg">
-                  Un conseiller CEMS vous contactera sous 24h pour finaliser votre
-                  inscription
+                  Un conseiller CEMS vous contactera sous 24h pour finaliser votre inscription
                 </p>
               </form>
             </CardContent>
           </Card>
         </div>
       </section>
+
+      {/* Contact Buttons */}
+      <aside className="fixed bottom-4 right-4 flex flex-col gap-2 z-50">
+        <Button
+          asChild
+          size="lg"
+          className="shadow-lg"
+          variant="default"
+          onClick={() => trackEvent("whatsapp_click")}
+        >
+          <a
+            href={`https://wa.me/${WHATSAPP_NUMBER.replace(/\+/g, "")}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2"
+          >
+            <MessageCircle className="h-5 w-5" />
+            WhatsApp
+          </a>
+        </Button>
+        <Button
+          asChild
+          size="lg"
+          className="shadow-lg"
+          variant="secondary"
+          onClick={() => trackEvent("phone_click", { number: PHONE_NUMBER1 })}
+        >
+          <a href={`tel:${PHONE_NUMBER1}`} className="flex items-center gap-2">
+            <Phone className="h-5 w-5" />
+            Appeler
+          </a>
+        </Button>
+      </aside>
     </div>
   );
 };
