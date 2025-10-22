@@ -30,6 +30,7 @@ const formatCFA = (value: number) => {
 
 const WHATSAPP_NUMBER = "+2250566621095";
 const PHONE_NUMBER1 = "+2250566621095";
+const MTN_MONEY_NUMBER = "0566621095";
 
 const trackEvent = async (event: string, meta?: any) => {
   try {
@@ -135,6 +136,7 @@ const Inscriptions = () => {
         ref: paymentRef,
         provider,
         amountCFA: plan.price_cfa,
+        recipientNumber: provider === "MTN_MOMO" ? MTN_MONEY_NUMBER : undefined,
         instructions: `Effectuez le paiement via ${provider}. Référence: ${paymentRef}`,
       });
 
@@ -554,7 +556,7 @@ const Inscriptions = () => {
                       <CardDescription>ID: {enrollmentId}</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-2 text-sm">
+                      <div className="space-y-3 text-sm">
                         <div>
                           <span className="font-semibold">Référence de paiement:</span>{" "}
                           {paymentInfo.ref}
@@ -565,10 +567,30 @@ const Inscriptions = () => {
                         </div>
                         <div>
                           <span className="font-semibold">Mode de paiement:</span>{" "}
-                          {paymentInfo.provider}
+                          {paymentInfo.provider === "ORANGE_MONEY" ? "Orange Money" :
+                           paymentInfo.provider === "MTN_MOMO" ? "MTN Mobile Money" :
+                           paymentInfo.provider === "MOOV_MONEY" ? "Moov Money" : "Carte bancaire"}
                         </div>
-                        <div className="pt-2 border-t">
-                          <p className="text-muted-foreground">{paymentInfo.instructions}</p>
+                        <div className="pt-3 border-t space-y-3">
+                          <p className="font-semibold">Instructions de paiement :</p>
+                          {paymentInfo.provider === "MTN_MOMO" && paymentInfo.recipientNumber ? (
+                            <div className="bg-background/50 p-4 rounded-lg space-y-2">
+                              <p className="text-muted-foreground">
+                                Effectuez le transfert MTN Mobile Money vers le numéro suivant :
+                              </p>
+                              <p className="text-2xl font-bold text-primary">
+                                {paymentInfo.recipientNumber}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                Montant à transférer : {formatCFA(paymentInfo.amountCFA)}
+                              </p>
+                            </div>
+                          ) : (
+                            <p className="text-muted-foreground">{paymentInfo.instructions}</p>
+                          )}
+                          <p className="text-muted-foreground text-xs pt-2">
+                            Notre équipe vous contactera sous 24h pour confirmer votre inscription.
+                          </p>
                         </div>
                       </div>
                     </CardContent>
