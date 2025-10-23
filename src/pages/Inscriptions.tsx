@@ -186,35 +186,34 @@ const Inscriptions = () => {
         return;
       }
 
-      // Create enrollment without requiring SELECT RLS by providing a client-side UUID
-      const newId = crypto.randomUUID();
-      const { error } = await supabase
-        .from("inscriptions")
-        .insert({
-          id: newId,
-          nom_complet_eleve: formData.nomCompletEleve,
-          classe_actuelle: formData.classeActuelle,
-          programme_souhaite: formData.programmeSouhaite,
-          ecole_actuelle: formData.ecoleActuelle,
-          nom_parent: formData.nomParent,
-          telephone_parent: formData.telephoneParent,
-          email_parent: formData.emailParent || null,
-          formule: formData.formule,
-          montant: plan.price_cfa,
-          statut: "RECEIVED",
-        });
+      // Construct WhatsApp message
+      const message = `*NOUVELLE DEMANDE D'INSCRIPTION CEMS*
 
-      if (error) throw error;
+📚 *INFORMATIONS ÉLÈVE*
+Nom complet: ${formData.nomCompletEleve}
+Classe actuelle: ${formData.classeActuelle}
+Programme souhaité: ${formData.programmeSouhaite}
+École actuelle: ${formData.ecoleActuelle}
 
-      setEnrollmentId(newId);
-      trackEvent("enrollment_created", { plan: formData.formule });
+👤 *CONTACT PARENT/TUTEUR*
+Nom: ${formData.nomParent}
+Téléphone: ${formData.telephoneParent}
+${formData.emailParent ? `Email: ${formData.emailParent}` : ''}
 
-      // Initialize payment
-      await initializePayment(newId, selectedProvider);
+💳 *FORMULE & PAIEMENT*
+Formule: ${plan.name}
+Montant: ${formatCFA(plan.price_cfa)}
+Mode de paiement: ${selectedProvider === "ORANGE_MONEY" ? "Orange Money" : selectedProvider === "MTN_MOMO" ? "MTN Mobile Money" : selectedProvider === "MOOV_MONEY" ? "Moov Money" : "Carte bancaire"}`;
+
+      // Open WhatsApp with the message
+      const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER.replace(/\+/g, '')}?text=${encodeURIComponent(message)}`;
+      window.open(whatsappUrl, '_blank');
+
+      trackEvent("enrollment_whatsapp_sent", { plan: formData.formule });
 
       toast({
-        title: "Inscription envoyée !",
-        description: "Nous vous contacterons sous 24h pour confirmer votre inscription.",
+        title: "Redirection vers WhatsApp",
+        description: "Votre demande va être envoyée via WhatsApp.",
       });
 
       // Reset form
