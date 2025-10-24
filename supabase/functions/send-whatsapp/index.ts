@@ -23,7 +23,7 @@ serve(async (req) => {
       throw new Error('Missing Meta WhatsApp credentials');
     }
 
-    const { message, enrollment, to } = await req.json();
+    const { message, enrollment, to, language } = await req.json();
 
     if (!message) {
       throw new Error('Message is required');
@@ -33,9 +33,13 @@ serve(async (req) => {
     const rawRecipient = (typeof to === 'string' ? to.trim() : undefined) || DEFAULT_RECIPIENT;
     const cleanRecipient = rawRecipient.replace(/^whatsapp:/, '').replace(/\s+/g, '');
 
+    // Language fallback (Meta default hello_world is en_US)
+    const langCode = (typeof language === 'string' && language.trim()) || 'en_US';
+
     // Masked logs for debugging (last 4 digits only)
     console.log('Prepared WhatsApp send', {
       to: cleanRecipient.replace(/\d(?=\d{4})/g, '*'),
+      language: langCode,
     });
 
     console.log('Sending WhatsApp message via Meta Business API');
@@ -43,7 +47,36 @@ serve(async (req) => {
     // Construct Meta WhatsApp Business API URL
     const metaUrl = `https://graph.facebook.com/v21.0/${META_PHONE_NUMBER_ID}/messages`;
 
-    // Send message via Meta API
+    // 1) Try to open 24h session with a template (hello_world)
+    try {
+      const templateResponse = await fetch(metaUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${META_ACCESS_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          to: cleanRecipient,
+          type: 'template',
+          template: {
+            name: 'hello_world',
+            language: { code: langCode },
+          },
+        }),
+      });
+
+      const templateData = await templateResponse.json();
+      if (!templateResponse.ok) {
+        console.warn('Template send failed or not approved:', templateData);
+      } else {
+        console.log('Template sent successfully:', templateData.messages?.[0]?.id);
+      }
+    } catch (e) {
+      console.warn('Template send threw an exception (continuing to text):', e);
+    }
+
+    // 2) Send the actual text message
     const response = await fetch(metaUrl, {
       method: 'POST',
       headers: {
@@ -55,8 +88,8 @@ serve(async (req) => {
         to: cleanRecipient,
         type: 'text',
         text: {
-          body: message
-        }
+          body: message,
+        },
       }),
     });
 
@@ -70,28 +103,27 @@ serve(async (req) => {
     console.log('WhatsApp message sent successfully:', responseData.messages?.[0]?.id);
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         messageId: responseData.messages?.[0]?.id,
-        enrollmentId: enrollment?.id 
+        enrollmentId: enrollment?.id,
       }),
-      { 
+      {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200 
+        status: 200,
       }
     );
-
   } catch (error) {
     console.error('Error in send-whatsapp function:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: errorMessage
+      JSON.stringify({
+        success: false,
+        error: errorMessage,
       }),
-      { 
+      {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500 
+        status: 500,
       }
     );
   }
