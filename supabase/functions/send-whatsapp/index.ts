@@ -5,16 +5,10 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const TWILIO_ACCOUNT_SID = Deno.env.get('TWILIO_ACCOUNT_SID')?.trim();
-const TWILIO_AUTH_TOKEN = Deno.env.get('TWILIO_AUTH_TOKEN')?.trim();
-const TWILIO_WHATSAPP_NUMBER_RAW = Deno.env.get('TWILIO_WHATSAPP_NUMBER')?.trim();
-const TWILIO_WHATSAPP_NUMBER = TWILIO_WHATSAPP_NUMBER_RAW
-  ? (TWILIO_WHATSAPP_NUMBER_RAW.startsWith('whatsapp:')
-      ? TWILIO_WHATSAPP_NUMBER_RAW
-      : `whatsapp:${TWILIO_WHATSAPP_NUMBER_RAW}`)
-  : undefined;
+const META_PHONE_NUMBER_ID = Deno.env.get('META_WHATSAPP_PHONE_NUMBER_ID')?.trim();
+const META_ACCESS_TOKEN = Deno.env.get('META_WHATSAPP_ACCESS_TOKEN')?.trim();
 const RECIPIENT_WHATSAPP_RAW = Deno.env.get('RECIPIENT_WHATSAPP')?.trim() || '+2250566621095';
-const RECIPIENT_WHATSAPP = RECIPIENT_WHATSAPP_RAW.startsWith('whatsapp:') ? RECIPIENT_WHATSAPP_RAW : `whatsapp:${RECIPIENT_WHATSAPP_RAW}`;
+const DEFAULT_RECIPIENT = RECIPIENT_WHATSAPP_RAW.replace(/^whatsapp:/, '');
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -23,10 +17,10 @@ serve(async (req) => {
   }
 
   try {
-    console.log('Starting WhatsApp send function');
+    console.log('Starting WhatsApp send function (Meta Business API)');
 
-    if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_WHATSAPP_NUMBER) {
-      throw new Error('Missing Twilio credentials');
+    if (!META_PHONE_NUMBER_ID || !META_ACCESS_TOKEN) {
+      throw new Error('Missing Meta WhatsApp credentials');
     }
 
     const { message, enrollment, to } = await req.json();
@@ -35,51 +29,50 @@ serve(async (req) => {
       throw new Error('Message is required');
     }
 
-    console.log('Sending WhatsApp message via Twilio');
-
-    // Construct Twilio API URL
-    const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`;
-
-    // Create Basic Auth header
-    const auth = btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`);
-
-    // Determine recipient (prefer body.to, fallback to secret/default)
-    const toClean = (typeof to === 'string' ? to.trim() : undefined) || RECIPIENT_WHATSAPP;
-    const TO_WHATSAPP = toClean?.startsWith('whatsapp:') ? toClean : `whatsapp:${toClean}`;
+    // Determine recipient and clean phone number
+    const rawRecipient = (typeof to === 'string' ? to.trim() : undefined) || DEFAULT_RECIPIENT;
+    const cleanRecipient = rawRecipient.replace(/^whatsapp:/, '').replace(/\s+/g, '');
 
     // Masked logs for debugging (last 4 digits only)
     console.log('Prepared WhatsApp send', {
-      from: TWILIO_WHATSAPP_NUMBER?.replace(/\d(?=\d{4})/g, '*'),
-      to: TO_WHATSAPP?.replace(/\d(?=\d{4})/g, '*'),
+      to: cleanRecipient.replace(/\d(?=\d{4})/g, '*'),
     });
 
-    // Send message via Twilio
-    const response = await fetch(twilioUrl, {
+    console.log('Sending WhatsApp message via Meta Business API');
+
+    // Construct Meta WhatsApp Business API URL
+    const metaUrl = `https://graph.facebook.com/v21.0/${META_PHONE_NUMBER_ID}/messages`;
+
+    // Send message via Meta API
+    const response = await fetch(metaUrl, {
       method: 'POST',
       headers: {
-        'Authorization': `Basic ${auth}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': `Bearer ${META_ACCESS_TOKEN}`,
+        'Content-Type': 'application/json',
       },
-      body: new URLSearchParams({
-        From: TWILIO_WHATSAPP_NUMBER,
-        To: TO_WHATSAPP,
-        Body: message,
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        to: cleanRecipient,
+        type: 'text',
+        text: {
+          body: message
+        }
       }),
     });
 
     const responseData = await response.json();
 
     if (!response.ok) {
-      console.error('Twilio API error:', responseData);
-      throw new Error(responseData.message || 'Failed to send WhatsApp message');
+      console.error('Meta API error:', responseData);
+      throw new Error(responseData.error?.message || 'Failed to send WhatsApp message');
     }
 
-    console.log('WhatsApp message sent successfully:', responseData.sid);
+    console.log('WhatsApp message sent successfully:', responseData.messages?.[0]?.id);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        messageSid: responseData.sid,
+        messageId: responseData.messages?.[0]?.id,
         enrollmentId: enrollment?.id 
       }),
       { 
