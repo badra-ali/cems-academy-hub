@@ -76,6 +76,11 @@ serve(async (req) => {
       console.warn('Template send threw an exception (continuing to text):', e);
     }
 
+    // Small delay to allow conversation window to open
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    console.log('Text length:', message?.length || 0);
+    console.log('Text preview:', typeof message === 'string' ? message.slice(0, 120) : '');
+
     // 2) Send the actual text message
     const response = await fetch(metaUrl, {
       method: 'POST',
