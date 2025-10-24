@@ -43,45 +43,13 @@ serve(async (req) => {
     });
 
     console.log('Sending WhatsApp message via Meta Business API');
+    console.log('Message length:', message?.length || 0);
+    console.log('Message preview:', typeof message === 'string' ? message.slice(0, 120) : '');
 
     // Construct Meta WhatsApp Business API URL
     const metaUrl = `https://graph.facebook.com/v21.0/${META_PHONE_NUMBER_ID}/messages`;
 
-    // 1) Try to open 24h session with a template (hello_world)
-    try {
-      const templateResponse = await fetch(metaUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${META_ACCESS_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          messaging_product: 'whatsapp',
-          to: cleanRecipient,
-          type: 'template',
-          template: {
-            name: 'hello_world',
-            language: { code: langCode },
-          },
-        }),
-      });
-
-      const templateData = await templateResponse.json();
-      if (!templateResponse.ok) {
-        console.warn('Template send failed or not approved:', templateData);
-      } else {
-        console.log('Template sent successfully:', templateData.messages?.[0]?.id);
-      }
-    } catch (e) {
-      console.warn('Template send threw an exception (continuing to text):', e);
-    }
-
-    // Small delay to allow conversation window to open
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    console.log('Text length:', message?.length || 0);
-    console.log('Text preview:', typeof message === 'string' ? message.slice(0, 120) : '');
-
-    // 2) Send the actual text message
+    // Send the text message with form data
     const response = await fetch(metaUrl, {
       method: 'POST',
       headers: {
