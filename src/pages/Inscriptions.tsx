@@ -186,6 +186,26 @@ const Inscriptions = () => {
         return;
       }
 
+      // Create enrollment in database
+      const newId = crypto.randomUUID();
+      const { error: enrollmentError } = await supabase
+        .from("inscriptions")
+        .insert({
+          id: newId,
+          nom_complet_eleve: formData.nomCompletEleve,
+          classe_actuelle: formData.classeActuelle,
+          programme_souhaite: formData.programmeSouhaite,
+          ecole_actuelle: formData.ecoleActuelle,
+          nom_parent: formData.nomParent,
+          telephone_parent: formData.telephoneParent,
+          email_parent: formData.emailParent || null,
+          formule: formData.formule,
+          montant: plan.price_cfa,
+          statut: "RECEIVED",
+        });
+
+      if (enrollmentError) throw enrollmentError;
+
       // Construct WhatsApp message
       const message = `*NOUVELLE DEMANDE D'INSCRIPTION CEMS*
 
@@ -205,16 +225,34 @@ Formule: ${plan.name}
 Montant: ${formatCFA(plan.price_cfa)}
 Mode de paiement: ${selectedProvider === "ORANGE_MONEY" ? "Orange Money" : selectedProvider === "MTN_MOMO" ? "MTN Mobile Money" : selectedProvider === "MOOV_MONEY" ? "Moov Money" : "Carte bancaire"}`;
 
-      // Open WhatsApp with the message
-      const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER.replace(/\+/g, '')}?text=${encodeURIComponent(message)}`;
-      window.open(whatsappUrl, '_blank');
-
-      trackEvent("enrollment_whatsapp_sent", { plan: formData.formule });
-
-      toast({
-        title: "Redirection vers WhatsApp",
-        description: "Votre demande va être envoyée via WhatsApp.",
+      // Send WhatsApp message automatically via Edge Function
+      const { data: whatsappData, error: whatsappError } = await supabase.functions.invoke('send-whatsapp', {
+        body: { 
+          message,
+          enrollment: { id: newId }
+        }
       });
+
+      if (whatsappError) {
+        console.error('WhatsApp send error:', whatsappError);
+        toast({
+          variant: "destructive",
+          title: "Erreur d'envoi",
+          description: "L'inscription a été enregistrée mais le message WhatsApp n'a pas pu être envoyé.",
+        });
+      } else {
+        console.log('WhatsApp sent successfully:', whatsappData);
+        trackEvent("enrollment_whatsapp_sent", { plan: formData.formule });
+        toast({
+          title: "Inscription envoyée !",
+          description: "Votre demande a été transmise automatiquement via WhatsApp. Nous vous contacterons sous 24h.",
+        });
+      }
+
+      setEnrollmentId(newId);
+      
+      // Initialize payment
+      await initializePayment(newId, selectedProvider);
 
       // Reset form
       setFormData({
