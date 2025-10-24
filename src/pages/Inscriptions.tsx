@@ -223,30 +223,18 @@ Formule: ${plan.name}
 Montant: ${formatCFA(plan.price_cfa)}
 Mode de paiement: ${selectedProvider === "ORANGE_MONEY" ? "Orange Money" : selectedProvider === "MTN_MOMO" ? "MTN Mobile Money" : selectedProvider === "MOOV_MONEY" ? "Moov Money" : "Carte bancaire"}`;
 
-      // Send WhatsApp message automatically via Edge Function
-      const { data: whatsappData, error: whatsappError } = await supabase.functions.invoke('send-whatsapp', {
-        body: { 
-          message,
-          enrollment: { id: newId },
-          to: WHATSAPP_NUMBER,
-        }
+      // Open WhatsApp with pre-filled message
+      const whatsappNumber = WHATSAPP_NUMBER.replace(/\+/g, '');
+      const encodedMessage = encodeURIComponent(message);
+      const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodedMessage}`;
+      
+      window.open(whatsappUrl, '_blank');
+      
+      trackEvent("enrollment_whatsapp_redirect", { plan: formData.formule });
+      toast({
+        title: "Redirection vers WhatsApp",
+        description: "Envoyez le message pré-rempli pour finaliser votre inscription.",
       });
-
-      if (whatsappError) {
-        console.error('WhatsApp send error:', whatsappError);
-        toast({
-          variant: "destructive",
-          title: "Erreur d'envoi",
-          description: "L'inscription a été enregistrée mais le message WhatsApp n'a pas pu être envoyé.",
-        });
-      } else {
-        console.log('WhatsApp sent successfully:', whatsappData);
-        trackEvent("enrollment_whatsapp_sent", { plan: formData.formule });
-        toast({
-          title: "Inscription envoyée !",
-          description: "Votre demande a été transmise automatiquement via WhatsApp. Nous vous contacterons sous 24h.",
-        });
-      }
 
       setEnrollmentId(newId);
       
