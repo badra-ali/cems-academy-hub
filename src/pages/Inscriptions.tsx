@@ -227,7 +227,8 @@ Mode de paiement: ${selectedProvider === "ORANGE_MONEY" ? "Orange Money" : selec
       const { data: whatsappData, error: whatsappError } = await supabase.functions.invoke('send-whatsapp', {
         body: { 
           message,
-          enrollment: { id: newId }
+          enrollment: { id: newId },
+          to: WHATSAPP_NUMBER,
         }
       });
 

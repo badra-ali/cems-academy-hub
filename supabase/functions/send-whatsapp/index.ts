@@ -26,7 +26,7 @@ serve(async (req) => {
       throw new Error('Missing Twilio credentials');
     }
 
-    const { message, enrollment } = await req.json();
+    const { message, enrollment, to } = await req.json();
 
     if (!message) {
       throw new Error('Message is required');
@@ -40,6 +40,10 @@ serve(async (req) => {
     // Create Basic Auth header
     const auth = btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`);
 
+    // Determine recipient (prefer body.to, fallback to secret/default)
+    const toRaw = to || RECIPIENT_WHATSAPP;
+    const TO_WHATSAPP = toRaw?.startsWith('whatsapp:') ? toRaw : `whatsapp:${toRaw}`;
+
     // Send message via Twilio
     const response = await fetch(twilioUrl, {
       method: 'POST',
@@ -49,7 +53,7 @@ serve(async (req) => {
       },
       body: new URLSearchParams({
         From: TWILIO_WHATSAPP_NUMBER,
-        To: RECIPIENT_WHATSAPP,
+        To: TO_WHATSAPP,
         Body: message,
       }),
     });
