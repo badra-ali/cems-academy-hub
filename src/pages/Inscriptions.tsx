@@ -127,7 +127,6 @@ const Inscriptions = () => {
         .from("inscriptions")
         .update({
           payment_id: paymentId,
-          statut: "PENDING_PAYMENT",
         })
         .eq("id", enrollmentId);
 
@@ -201,7 +200,6 @@ const Inscriptions = () => {
           email_parent: formData.emailParent || null,
           formule: formData.formule,
           montant: plan.price_cfa,
-          statut: "RECEIVED",
         });
 
       if (enrollmentError) throw enrollmentError;
