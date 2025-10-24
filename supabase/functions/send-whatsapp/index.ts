@@ -5,13 +5,16 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const TWILIO_ACCOUNT_SID = Deno.env.get('TWILIO_ACCOUNT_SID');
-const TWILIO_AUTH_TOKEN = Deno.env.get('TWILIO_AUTH_TOKEN');
-const TWILIO_WHATSAPP_NUMBER_RAW = Deno.env.get('TWILIO_WHATSAPP_NUMBER');
-const TWILIO_WHATSAPP_NUMBER = TWILIO_WHATSAPP_NUMBER_RAW?.startsWith('whatsapp:') 
-  ? TWILIO_WHATSAPP_NUMBER_RAW 
-  : `whatsapp:${TWILIO_WHATSAPP_NUMBER_RAW}`;
-const RECIPIENT_WHATSAPP = Deno.env.get('RECIPIENT_WHATSAPP') || 'whatsapp:+2250566621095';
+const TWILIO_ACCOUNT_SID = Deno.env.get('TWILIO_ACCOUNT_SID')?.trim();
+const TWILIO_AUTH_TOKEN = Deno.env.get('TWILIO_AUTH_TOKEN')?.trim();
+const TWILIO_WHATSAPP_NUMBER_RAW = Deno.env.get('TWILIO_WHATSAPP_NUMBER')?.trim();
+const TWILIO_WHATSAPP_NUMBER = TWILIO_WHATSAPP_NUMBER_RAW
+  ? (TWILIO_WHATSAPP_NUMBER_RAW.startsWith('whatsapp:')
+      ? TWILIO_WHATSAPP_NUMBER_RAW
+      : `whatsapp:${TWILIO_WHATSAPP_NUMBER_RAW}`)
+  : undefined;
+const RECIPIENT_WHATSAPP_RAW = Deno.env.get('RECIPIENT_WHATSAPP')?.trim() || '+2250566621095';
+const RECIPIENT_WHATSAPP = RECIPIENT_WHATSAPP_RAW.startsWith('whatsapp:') ? RECIPIENT_WHATSAPP_RAW : `whatsapp:${RECIPIENT_WHATSAPP_RAW}`;
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -41,8 +44,14 @@ serve(async (req) => {
     const auth = btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`);
 
     // Determine recipient (prefer body.to, fallback to secret/default)
-    const toRaw = to || RECIPIENT_WHATSAPP;
-    const TO_WHATSAPP = toRaw?.startsWith('whatsapp:') ? toRaw : `whatsapp:${toRaw}`;
+    const toClean = (typeof to === 'string' ? to.trim() : undefined) || RECIPIENT_WHATSAPP;
+    const TO_WHATSAPP = toClean?.startsWith('whatsapp:') ? toClean : `whatsapp:${toClean}`;
+
+    // Masked logs for debugging (last 4 digits only)
+    console.log('Prepared WhatsApp send', {
+      from: TWILIO_WHATSAPP_NUMBER?.replace(/\d(?=\d{4})/g, '*'),
+      to: TO_WHATSAPP?.replace(/\d(?=\d{4})/g, '*'),
+    });
 
     // Send message via Twilio
     const response = await fetch(twilioUrl, {
