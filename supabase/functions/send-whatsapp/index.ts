@@ -7,7 +7,10 @@ const corsHeaders = {
 
 const TWILIO_ACCOUNT_SID = Deno.env.get('TWILIO_ACCOUNT_SID');
 const TWILIO_AUTH_TOKEN = Deno.env.get('TWILIO_AUTH_TOKEN');
-const TWILIO_WHATSAPP_NUMBER = Deno.env.get('TWILIO_WHATSAPP_NUMBER');
+const TWILIO_WHATSAPP_NUMBER_RAW = Deno.env.get('TWILIO_WHATSAPP_NUMBER');
+const TWILIO_WHATSAPP_NUMBER = TWILIO_WHATSAPP_NUMBER_RAW?.startsWith('whatsapp:') 
+  ? TWILIO_WHATSAPP_NUMBER_RAW 
+  : `whatsapp:${TWILIO_WHATSAPP_NUMBER_RAW}`;
 const RECIPIENT_WHATSAPP = Deno.env.get('RECIPIENT_WHATSAPP') || 'whatsapp:+2250566621095';
 
 serve(async (req) => {
