@@ -8,15 +8,108 @@ import { useState } from "react";
 const categories = ["Toutes", "BEPC", "BAC", "Mathématiques", "Physique-Chimie", "SVT", "Français", "Anglais"];
 
 const ressources = [
+  // 10 Annales BEPC avec corrections complètes
+  {
+    titre: "Annales BEPC Mathématiques 2024",
+    type: "Annale",
+    categorie: "BEPC",
+    matiere: "Mathématiques",
+    description: "Épreuve complète avec correction détaillée, barème et conseils méthodologiques",
+    annee: "2024",
+    icon: FileText,
+    pdfUrl: "/ressources/bepc-maths-2024.pdf",
+  },
+  {
+    titre: "Annales BEPC Français 2024",
+    type: "Annale",
+    categorie: "BEPC",
+    matiere: "Français",
+    description: "Sujet de composition et rédaction avec corrigés types et grilles d'évaluation",
+    annee: "2024",
+    icon: FileText,
+    pdfUrl: "/ressources/bepc-francais-2024.pdf",
+  },
+  {
+    titre: "Annales BEPC Physique-Chimie 2024",
+    type: "Annale",
+    categorie: "BEPC",
+    matiere: "Physique-Chimie",
+    description: "Tous les exercices corrigés avec explications détaillées des formules",
+    annee: "2024",
+    icon: FileText,
+    pdfUrl: "/ressources/bepc-physique-2024.pdf",
+  },
+  {
+    titre: "Annales BEPC SVT 2024",
+    type: "Annale",
+    categorie: "BEPC",
+    matiere: "SVT",
+    description: "Épreuves complètes avec schémas annotés et corrections commentées",
+    annee: "2024",
+    icon: FileText,
+    pdfUrl: "/ressources/bepc-svt-2024.pdf",
+  },
+  {
+    titre: "Annales BEPC Anglais 2024",
+    type: "Annale",
+    categorie: "BEPC",
+    matiere: "Anglais",
+    description: "Compréhension écrite et expression avec corrigés et vocabulaire clé",
+    annee: "2024",
+    icon: FileText,
+    pdfUrl: "/ressources/bepc-anglais-2024.pdf",
+  },
   {
     titre: "Annales BEPC Mathématiques 2023",
     type: "Annale",
     categorie: "BEPC",
     matiere: "Mathématiques",
-    description: "Sujets corrigés complets avec barèmes et conseils méthodologiques",
+    description: "Session 2023 complète avec tous les exercices et solutions détaillées",
     annee: "2023",
     icon: FileText,
+    pdfUrl: "/ressources/bepc-maths-2023.pdf",
   },
+  {
+    titre: "Annales BEPC Français 2023",
+    type: "Annale",
+    categorie: "BEPC",
+    matiere: "Français",
+    description: "Analyse de texte et rédaction avec corrections et conseils des examinateurs",
+    annee: "2023",
+    icon: FileText,
+    pdfUrl: "/ressources/bepc-francais-2023.pdf",
+  },
+  {
+    titre: "Annales BEPC Physique-Chimie 2023",
+    type: "Annale",
+    categorie: "BEPC",
+    matiere: "Physique-Chimie",
+    description: "Sujets avec correction complète, méthodes de résolution et rappels de cours",
+    annee: "2023",
+    icon: FileText,
+    pdfUrl: "/ressources/bepc-physique-2023.pdf",
+  },
+  {
+    titre: "Annales BEPC SVT 2023",
+    type: "Annale",
+    categorie: "BEPC",
+    matiere: "SVT",
+    description: "Épreuves de biologie et géologie avec schémas légendés et corrigés détaillés",
+    annee: "2023",
+    icon: FileText,
+    pdfUrl: "/ressources/bepc-svt-2023.pdf",
+  },
+  {
+    titre: "Annales BEPC Anglais 2023",
+    type: "Annale",
+    categorie: "BEPC",
+    matiere: "Anglais",
+    description: "Sujet complet avec corrigés, traductions et expressions utiles",
+    annee: "2023",
+    icon: FileText,
+    pdfUrl: "/ressources/bepc-anglais-2023.pdf",
+  },
+  // Autres ressources
   {
     titre: "Annales BAC D Physique-Chimie 2023",
     type: "Annale",
@@ -42,15 +135,6 @@ const ressources = [
     description: "Cours complet en vidéo de 45 minutes avec exercices corrigés",
     duree: "45 min",
     icon: Video,
-  },
-  {
-    titre: "Annales BEPC SVT 2022",
-    type: "Annale",
-    categorie: "BEPC",
-    matiere: "SVT",
-    description: "Épreuves de Sciences de la Vie et de la Terre avec schémas annotés",
-    annee: "2022",
-    icon: FileText,
   },
   {
     titre: "Fiche Révision - Le Système Nerveux",
@@ -210,7 +294,16 @@ const Ressources = () => {
                       <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
                         {ressource.description}
                       </p>
-                      <Button variant="hero" size="sm" className="w-full">
+                      <Button 
+                        variant="hero" 
+                        size="sm" 
+                        className="w-full"
+                        onClick={() => {
+                          if (ressource.pdfUrl) {
+                            window.open(ressource.pdfUrl, '_blank');
+                          }
+                        }}
+                      >
                         <Download className="w-4 h-4 mr-2" />
                         Télécharger
                       </Button>
