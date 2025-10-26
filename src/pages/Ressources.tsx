@@ -47,7 +47,7 @@ const ressources = [
     description: "Compilation complète des sujets et corrigés de Physique-Chimie - BEPC 2025 (Zones 1, 2 et 3)",
     annee: "2025",
     icon: FileText,
-    pdfUrl: "https://epreuvesetcorriges.com/categories/cote-d-ivoire/examens/bepc/39716-compilation-complete-sujets-et-corriges-de-physique-chimie-bepc-session-2025-zones-1-2-et-3",
+    pdfUrl: "/ressources/bepc-physique-chimie-2025-zones-1-2-3.pdf",
   },
   {
     titre: "Compilation SVT BEPC 2025",
