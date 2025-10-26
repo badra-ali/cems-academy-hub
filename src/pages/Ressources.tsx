@@ -5,10 +5,20 @@ import { Badge } from "@/components/ui/badge";
 import { FileText, Video, Download, Search, BookOpen, Award } from "lucide-react";
 import { useState } from "react";
 
-const categories = ["Toutes", "BEPC", "BAC", "Mathématiques", "Physique-Chimie", "SVT", "Français", "Anglais"];
+const categories = ["Toutes", "BEPC", "BAC", "Mathématiques", "Physique-Chimie", "SVT", "Français", "Anglais", "Espagnol"];
 
 const ressources = [
   // 10 Annales BEPC avec corrections complètes (Côte d'Ivoire 2024-2025)
+  {
+    titre: "Compilation Espagnol BEPC 2025",
+    type: "Annale",
+    categorie: "BEPC",
+    matiere: "Espagnol",
+    description: "Compilation complète des sujets et corrigés d'Espagnol - BEPC 2025 (Zones 1, 2 et 3)",
+    annee: "2025",
+    icon: FileText,
+    pdfUrl: "/ressources/bepc-espagnol-2025-zones-1-2-3.pdf",
+  },
   {
     titre: "Compilation Mathématiques BEPC 2025",
     type: "Annale",
