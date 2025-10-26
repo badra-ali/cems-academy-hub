@@ -57,7 +57,7 @@ const ressources = [
     description: "Compilation complète des sujets et corrigés de Sciences de la Vie et de la Terre - BEPC 2025 (Zones 1, 2 et 3)",
     annee: "2025",
     icon: FileText,
-    pdfUrl: "https://epreuvesetcorriges.com/categories/cote-d-ivoire/examens/bepc/39717-compilation-complete-sujets-et-corriges-de-sciences-de-la-vie-et-de-la-terre-bepc-session-2025-zones-1-2-et-3",
+    pdfUrl: "/ressources/bepc-svt-2025-zones-1-2-3.pdf",
   },
   {
     titre: "Compilation Français BEPC 2025",
@@ -77,7 +77,7 @@ const ressources = [
     description: "Épreuve et corrigé de Mathématiques - BEPC Session 2025 Zone 3",
     annee: "2025",
     icon: FileText,
-    pdfUrl: "https://epreuvesetcorriges.com/categories/cote-d-ivoire/examens/bepc/432-epreuves-et-corriges-bepc-2025-cote-d-ivoire/39688-epreuve-et-corrige-de-mathematiques-bepc-session-2025-zone-3",
+    pdfUrl: "/ressources/bepc-mathematiques-2025-zone-3.pdf",
   },
   {
     titre: "Épreuve Anglais BEPC 2025 Zone 1",
@@ -107,7 +107,7 @@ const ressources = [
     description: "Épreuve et corrigé de Sciences de la Vie et de la Terre - BEPC Session 2025 Zone 1",
     annee: "2025",
     icon: FileText,
-    pdfUrl: "https://epreuvesetcorriges.com/categories/cote-d-ivoire/examens/bepc/432-epreuves-et-corriges-bepc-2025-cote-d-ivoire/39710-epreuve-et-corrige-de-sciences-de-la-vie-et-de-la-terre-bepc-session-2025-zone-1",
+    pdfUrl: "/ressources/bepc-svt-2025-zone-1.pdf",
   },
   {
     titre: "Épreuve Français BEPC 2025 Zone 3",
@@ -117,7 +117,7 @@ const ressources = [
     description: "Épreuve et corrigé de Composition Française - BEPC Session 2025 Zone 3",
     annee: "2025",
     icon: FileText,
-    pdfUrl: "https://epreuvesetcorriges.com/categories/cote-d-ivoire/examens/bepc/432-epreuves-et-corriges-bepc-2025-cote-d-ivoire/39701-epreuve-et-corrige-de-composition-francaise-bepc-session-2025-zone-3",
+    pdfUrl: "/ressources/bepc-francais-2025-zone-3.pdf",
   },
   // Autres ressources
   {
