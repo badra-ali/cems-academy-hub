@@ -31,8 +31,8 @@ export const Header = () => {
     <header
       className={cn(
         "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
-        isScrolled
-          ? "bg-background/95 backdrop-blur-md shadow-medium"
+        isScrolled || isMobileMenuOpen
+          ? "bg-background/98 backdrop-blur-md shadow-medium"
           : "bg-transparent"
       )}
     >
@@ -92,7 +92,7 @@ export const Header = () => {
 
         {/* Mobile Navigation */}
         {isMobileMenuOpen && (
-          <div className="lg:hidden py-4 border-t border-border">
+          <div className="lg:hidden py-4 border-t border-border bg-background/98 backdrop-blur-lg">
             <nav className="flex flex-col space-y-2">
               {navigation.map((item) => (
                 <Link
@@ -100,7 +100,7 @@ export const Header = () => {
                   to={item.href}
                   onClick={() => setIsMobileMenuOpen(false)}
                   className={cn(
-                    "px-4 py-3 rounded-md text-sm font-medium transition-colors",
+                    "px-4 py-3 rounded-md text-base font-medium transition-colors",
                     location.pathname === item.href
                       ? "text-primary bg-primary/10"
                       : "text-foreground hover:text-primary hover:bg-muted"
@@ -109,12 +109,12 @@ export const Header = () => {
                   {item.name}
                 </Link>
               ))}
-              <div className="pt-4 space-y-2">
+              <div className="pt-4 space-y-3 px-2">
                 <Button variant="outline" className="w-full" asChild>
-                  <Link to="/contact">Nous contacter</Link>
+                  <Link to="/contact" onClick={() => setIsMobileMenuOpen(false)}>Nous contacter</Link>
                 </Button>
                 <Button variant="hero" className="w-full" asChild>
-                  <Link to="/inscriptions">S'inscrire maintenant</Link>
+                  <Link to="/inscriptions" onClick={() => setIsMobileMenuOpen(false)}>S'inscrire maintenant</Link>
                 </Button>
               </div>
             </nav>
