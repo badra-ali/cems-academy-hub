@@ -27,7 +27,7 @@ const ressources = [
     description: "Compilation complète des sujets et corrigés de Mathématiques - BEPC 2025 (Zones 1, 2 et 3)",
     annee: "2025",
     icon: FileText,
-    pdfUrl: "https://epreuvesetcorriges.com/categories/cote-d-ivoire/examens/bepc/39714-compilation-complete-sujets-et-corriges-de-mathematiques-bepc-session-2025-zones-1-2-et-3",
+    pdfUrl: "/ressources/bepc-mathematiques-2025-zones-1-2-3.pdf",
   },
   {
     titre: "Compilation Anglais BEPC 2025",
