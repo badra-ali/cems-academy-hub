@@ -67,7 +67,7 @@ const ressources = [
     description: "Compilation complète des sujets et corrigés d'Orthographe - BEPC 2025 (Zones 1, 2 et 3)",
     annee: "2025",
     icon: FileText,
-    pdfUrl: "/ressources/bepc-francais-2025-zones-1-2-3.pdf",
+    pdfUrl: "https://epreuvesetcorriges.com/categories/cote-d-ivoire/examens/bepc/39715-compilation-complete-sujets-et-corriges-d-orthographe-bepc-session-2025-zones-1-2-et-3",
   },
   {
     titre: "Épreuve Mathématiques BEPC 2025 Zone 3",
