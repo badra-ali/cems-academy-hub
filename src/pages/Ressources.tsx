@@ -37,7 +37,7 @@ const ressources = [
     description: "Compilation complète des sujets et corrigés d'Anglais - BEPC 2025 (Zones 1, 2 et 3)",
     annee: "2025",
     icon: FileText,
-    pdfUrl: "https://epreuvesetcorriges.com/categories/cote-d-ivoire/examens/bepc/39713-compilation-complete-sujets-et-corriges-d-anglais-bepc-session-2025-zones-1-2-et-3",
+    pdfUrl: "/ressources/bepc-anglais-2025-zones-1-2-3.pdf",
   },
   {
     titre: "Compilation Physique-Chimie BEPC 2025",
